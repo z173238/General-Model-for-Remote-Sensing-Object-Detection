@@ -85,13 +85,13 @@ class UnifiedRSDetectionEngine:
         print("[1/2] SM3Det (178M, 光学OBB+SAR HBB)...")
         self._sm3det = self._load_sm3det()
 
-        print("[2/2] Cascade Mask R-CNN (77M)...")
-        self._mask_rcnn = self._load_mask_rcnn()
+        print("[2/2] SAM ViT-B (91M, 零样本实例分割)...")
+        self._sam, self._sam_predictor = self._load_sam()
 
         self._loaded = True
         sm3det_n = sum(p.numel() for p in self._sm3det.parameters())
-        mask_n = sum(p.numel() for p in self._mask_rcnn.parameters())
-        print(f"Done! SM3Det {sm3det_n/1e6:.0f}M + Mask {mask_n/1e6:.0f}M = {(sm3det_n+mask_n)/1e6:.0f}M total")
+        sam_n = sum(p.numel() for p in self._sam.parameters())
+        print(f"Done! SM3Det {sm3det_n/1e6:.0f}M + SAM {sam_n/1e6:.0f}M = {(sm3det_n+sam_n)/1e6:.0f}M total")
 
     def _load_sm3det(self):
         from mmcv import Config
@@ -114,14 +114,17 @@ class UnifiedRSDetectionEngine:
         model.eval().cuda()
         return model
 
-    def _load_mask_rcnn(self):
-        from mmdet.apis import init_detector
-        import mmdet
-        config = os.path.join(os.path.dirname(mmdet.__path__[0]),
-            "mmdet/.mim/configs/cascade_rcnn/cascade_mask_rcnn_r50_fpn_1x_coco.py")
-        ckpt = os.path.expanduser("~/.cache/torch/hub/checkpoints/cascade_mask_rcnn_r50_fpn_1x_coco_20200203-9d4dcb24.pth")
-        model = init_detector(config, ckpt, device=self.device)
-        return model
+    def _load_sam(self):
+        from segment_anything import sam_model_registry, SamPredictor
+        ckpt = os.path.expanduser("~/.cache/torch/hub/checkpoints/sam_vit_b_01ec64.pth")
+        if not os.path.exists(ckpt):
+            import urllib.request
+            url = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth"
+            print("  Downloading SAM ViT-B (375MB)...")
+            urllib.request.urlretrieve(url, ckpt)
+        sam = sam_model_registry["vit_b"](checkpoint=ckpt)
+        sam.eval().cuda()
+        return sam, SamPredictor(sam)
 
     def detect(self, image: np.ndarray, modality: str = "auto",
                tasks: List[str] = None) -> DetectionResult:
@@ -193,31 +196,25 @@ class UnifiedRSDetectionEngine:
                         dets.append(Detection(bbox_hbb=hbb, bbox_obb=[cx, cy, bw, bh, theta],
                             class_name=cn, score=score, modality="optical"))
 
-        # Mask (Cascade Mask R-CNN)
+        # Mask (SAM zero-shot from SM3Det OBB boxes)
         if "mask" in tasks:
-            from mmdet.apis import inference_detector
-            result = inference_detector(self._mask_rcnn, img)
-            if hasattr(result, 'pred_instances'):
-                pred = result.pred_instances
-            elif isinstance(result, tuple):
-                pred = result[0]
-            else:
-                pred = result
-
-            if isinstance(pred, list) and len(pred) == 2:
-                bboxes_list, masks_list = pred
-                for cid, (boxes, masks) in enumerate(zip(bboxes_list, masks_list)):
-                    if len(boxes) == 0:
-                        continue
-                    for i in range(len(boxes)):
-                        score = float(boxes[i][4])
-                        if score < 0.3:
-                            continue
-                        b = boxes[i][:4].tolist()
-                        mask = masks[i] if i < len(masks) else None
-                        cn = f"cls_{cid}"
-                        dets.append(Detection(bbox_hbb=b, mask=mask, class_name=cn,
-                            score=score, modality="optical"))
+            # 收集已有OBB检测框
+            obb_boxes = [(d.bbox_hbb, d.score, d.class_name) for d in dets if d.score > 0.5]
+            if obb_boxes:
+                self._sam_predictor.set_image(img)
+                for hbb, score, cn in obb_boxes[:20]:  # top-20 per image
+                    try:
+                        input_box = np.array([hbb])
+                        mask_out, mask_score, _ = self._sam_predictor.predict(
+                            box=input_box, multimask_output=False)
+                        if mask_out.sum() > 0:
+                            mask_existing = None
+                            for d in dets:
+                                if d.class_name == cn and d.score == score:
+                                    d.mask = mask_out[0].astype(bool)
+                                    break
+                    except Exception:
+                        pass
 
         return dets
 
@@ -258,10 +255,10 @@ class UnifiedRSDetectionEngine:
         print("遥感通用检测引擎 v2 — Model Summary")
         print(f"{'='*50}")
         sm3det_n = sum(p.numel() for p in self._sm3det.parameters())
-        mask_n = sum(p.numel() for p in self._mask_rcnn.parameters())
+        sam_n = sum(p.numel() for p in self._sam.parameters())
         print(f"  SM3Det     : {sm3det_n/1e6:7.1f}M  (光学OBB + SAR HBB)")
-        print(f"  Mask R-CNN : {mask_n/1e6:7.1f}M  (光学Mask)")
-        print(f"  Total      : {(sm3det_n+mask_n)/1e6:7.1f}M")
+        print(f"  SAM ViT-B  : {sam_n/1e6:7.1f}M  (零样本实例分割)")
+        print(f"  Total      : {(sm3det_n+sam_n)/1e6:7.1f}M")
         print(f"{'='*50}")
 
 

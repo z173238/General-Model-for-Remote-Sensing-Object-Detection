@@ -1,0 +1,31 @@
+# Large files
+*.tar.gz
+*.zip
+SM3Det_weights/
+work_dirs/
+*.pth
+!engine_checkpoint/
+
+# Cloned repos (可重新clone)
+UniconDet/
+SM3Det/
+mmrotate-main/
+mmrotate-1.x/
+mmrotate-dev1x/
+mmrotate_repo/
+SkySense-main/
+
+# Datasets
+dataset/
+/home/ubuntu/dataset/
+kagglehub/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# System
+.DS_Store
+*.log
+/tmp/

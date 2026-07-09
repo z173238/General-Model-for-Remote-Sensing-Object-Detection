@@ -1,6 +1,0 @@
-mmpretrain
-motmetrics
-scikit-learn
-seaborn
-filterpy
-pyclustering

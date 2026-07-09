@@ -19,14 +19,24 @@ torch.load = _patched_load
 SM3DET_PATH = "/home/ubuntu/workspace/General Model for Remote Sensing Object Detection/SM3Det"
 sys.path.insert(0, SM3DET_PATH)
 
-# DOTA 26-class names (from SM3Det training config)
-DOTA_CLASSES_26 = [
-    'baseball-diamond','basketball-court','bridge','container-crane',
-    'ground-track-field','harbor','helicopter','helipad','large-vehicle',
-    'plane','roundabout','ship','small-vehicle','soccer-ball-field',
-    'storage-tank','swimming-pool','tennis-court','airport','train-station',
-    'windmill','chimney','dam','golffield','overpass','track','bicycle'
+# SM3Det 26-class names (from SOI-Det merged: SARDet+DOTA+DroneVehicle)
+SM3DET_CLASSES_26 = [
+    'ship','aircraft','car','tank','bridge','harbor',               # 0-5:  SARDet
+    'small-vehicle','large-vehicle','plane','Ship','Harbor',        # 6-10: DOTA+SARDup
+    'tennis-court','soccer-ball-field','ground-track-field',        # 11-13: DOTA
+    'baseball-diamond','swimming-pool','roundabout',                # 14-16: DOTA
+    'basketball-court','storage-tank','Bridge','helicopter',        # 17-20: DOTA+dup
+    'CAR','BUS','FERIGHT_CAR','TRUCK','VAN'                         # 21-25: DroneVehicle
 ]
+# Normalize duplicates: case-insensitive merge
+_SM3DET_CLASS_MAP = {
+    'Ship': 'ship', 'Harbor': 'harbor', 'Bridge': 'bridge',
+    'CAR': 'car', 'helicopter': 'helicopter',
+    'BUS': 'bus', 'FERIGHT_CAR': 'freight-car', 'TRUCK': 'truck', 'VAN': 'van'
+}
+for i, name in enumerate(SM3DET_CLASSES_26):
+    if name in _SM3DET_CLASS_MAP:
+        SM3DET_CLASSES_26[i] = _SM3DET_CLASS_MAP[name]
 
 # SARDet 6-class names
 SAR_CLASSES_6 = ['ship','aircraft','car','bridge','harbor','tank']
@@ -175,7 +185,7 @@ class UnifiedRSDetectionEngine:
                     # OBB: [cx, cy, w, h, theta]
                     cx, cy = (x1+x2)/2, (y1+y2)/2
                     bw, bh = x2-x1, y2-y1
-                    cn = DOTA_CLASSES_26[cid] if cid < len(DOTA_CLASSES_26) else f"cls_{cid}"
+                    cn = SM3DET_CLASSES_26[cid] if cid < len(SM3DET_CLASSES_26) else f"cls_{cid}"
                     if "hbb" in tasks:
                         dets.append(Detection(bbox_hbb=hbb, class_name=cn,
                             score=score, modality="optical"))

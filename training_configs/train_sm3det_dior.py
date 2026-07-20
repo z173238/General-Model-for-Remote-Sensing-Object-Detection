@@ -47,4 +47,4 @@ torch.save({'state_dict': model.state_dict(), 'model_cfg': cfg.model},
 print(f'Model ready: {sum(p.numel() for p in model.parameters())/1e6:.1f}M params')
 print(f'Train: {sum(p.numel() for p in model.parameters() if p.requires_grad)/1e6:.1f}M trainable')
 print('\nRun training:')
-print(f'  cd SM3Det && TORCH_FORCE_WEIGHTS_ONLY_LOAD=0 python3 tools/train.py training_configs/sm3det_dior_finetune.py --launcher none --no-validate')
+print(f'  cd /home/ubuntu/workspace/General\\ Model\\ for\\ Remote\\ Sensing\\ Object\\ Detection/SM3Det && TORCH_FORCE_WEIGHTS_ONLY_LOAD=0 python3 tools/train.py /home/ubuntu/workspace/General\\ Model\\ for\\ Remote\\ Sensing\\ Object\\ Detection/training_configs/sm3det_dior_finetune.py --launcher none --no-validate')

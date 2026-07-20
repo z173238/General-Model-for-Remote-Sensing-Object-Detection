@@ -46,3 +46,14 @@
  def parse_args():
      parser = argparse.ArgumentParser(description='Train a detector')
      parser.add_argument('config', help='train config file path')
+
+--- a/../../../../miniconda3/envs/rs_detection/lib/python3.12/site-packages/mmcv/parallel/_functions.py
++++ b/mmcv/parallel/_functions.py
+@@ -72,7 +72,8 @@
+         if input_device == -1 and target_gpus != [-1]:
+             # Perform CPU to GPU copies in a background stream
+-            streams = [_get_stream(device) for device in target_gpus]
++            streams = [_get_stream(torch.device(f'cuda:{device}'))
++                       for device in target_gpus]
+ 
+         outputs = scatter(input, target_gpus, streams)

@@ -3,7 +3,7 @@ num_classes = 20
 data_root = '/home/ubuntu/dataset/DIOR_dota_format/'
 img_scale = (800, 800)
 angle_version = 'le90'
-load_from = '/home/ubuntu/workspace/General Model for Remote Sensing Object Detection/SM3Det_weights/ckpt/SM3Det_convnext_t/iter_33468.pth'
+load_from = '/home/ubuntu/workspace/General Model for Remote Sensing Object Detection/work_dirs/sm3det_dior_init.pth'
 work_dir = '/home/ubuntu/workspace/General Model for Remote Sensing Object Detection/work_dirs/sm3det_dior/'
 
 # DIOR 20 classes

@@ -75,4 +75,6 @@ checkpoint_config = dict(interval=2)
 log_config = dict(interval=50, hooks=[dict(type='TextLoggerHook')])
 evaluation = dict(interval=2, metric='mAP')
 
+log_level = 'INFO'
+dist_params = dict(backend='nccl')
 custom_imports = dict(imports=['mmrotate.models.backbones.convnext_moe'], allow_failed_imports=False)

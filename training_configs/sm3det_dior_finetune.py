@@ -16,8 +16,10 @@ model = dict(
     type='OrientedRCNN',
     backbone=dict(
         type='ConvNeXt_moe_MultiInput',
-        MoE_Block_inds=[[],[],[0,2,4,6,8],[0,2]],
-        datasets=None, num_experts=8, top_k=2, arch='tiny', drop_path_rate=0.1),
+        MoE_Block_inds=[[],[0,2],[0,2,4,6,8],[0,2]],
+        datasets=None, num_experts=8, top_k=2, arch='tiny', drop_path_rate=0.1,
+        init_cfg=dict(type='Pretrained', prefix='backbone',
+            checkpoint='/home/ubuntu/workspace/General Model for Remote Sensing Object Detection/SM3Det_weights/ckpt/convnext-tiny.pth')),
     neck=dict(type='FPN', in_channels=[96,192,384,768], out_channels=256, num_outs=5),
     rpn_head=dict(
         type='OrientedRPNHead', in_channels=256, feat_channels=256,
@@ -62,9 +64,9 @@ test_pipeline = [
 
 data = dict(
     samples_per_gpu=4, workers_per_gpu=0,
-    train=dict(type='DOTADataset', data_root=data_root, ann_file='train/annfiles/', img_prefix='train/images/', pipeline=train_pipeline),
-    val=dict(type='DOTADataset', data_root=data_root, ann_file='val/annfiles/', img_prefix='val/images/', pipeline=test_pipeline),
-    test=dict(type='DOTADataset', data_root=data_root, ann_file='val/annfiles/', img_prefix='val/images/', pipeline=test_pipeline))
+    train=dict(type='DOTADataset', data_root=data_root, ann_file='train/annfiles/', img_prefix='train/images/', pipeline=train_pipeline, classes=DIOR_CLASSES),
+    val=dict(type='DOTADataset', data_root=data_root, ann_file='val/annfiles/', img_prefix='val/images/', pipeline=test_pipeline, classes=DIOR_CLASSES),
+    test=dict(type='DOTADataset', data_root=data_root, ann_file='val/annfiles/', img_prefix='val/images/', pipeline=test_pipeline, classes=DIOR_CLASSES))
 
 # ===== Schedule =====
 optimizer = dict(type='AdamW', lr=0.00005, weight_decay=0.05)
@@ -77,4 +79,7 @@ evaluation = dict(interval=2, metric='mAP')
 
 log_level = 'INFO'
 dist_params = dict(backend='nccl')
+resume_from = None
+workflow = [('train', 1)]
+gpu_ids = [0]
 custom_imports = dict(imports=['mmrotate.models.backbones.convnext_moe'], allow_failed_imports=False)

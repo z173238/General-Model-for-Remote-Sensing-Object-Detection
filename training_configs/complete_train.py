@@ -10,7 +10,7 @@ torch.load = _p
 from mmengine.runner import Runner
 from mmengine import Config
 
-cfg = Config.fromfile('/tmp/dior_finetune2.py')
+cfg = Config.fromfile(os.path.join(os.path.dirname(__file__), 'dior_finetune2.py'))
 cfg.launcher = 'none'
 
 # 数据加载: num_workers=0 避免 multiprocessing 问题

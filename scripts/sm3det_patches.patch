@@ -1,0 +1,48 @@
+--- a/mmrotate/models/backbones/convnext_moe.py
++++ b/mmrotate/models/backbones/convnext_moe.py
+@@ -816,7 +816,8 @@
+                     outs.append(norm_layer(x))
+         if len(gate_losses) > 0:
+-            return tuple(outs), sum(gate_losses)/len(gate_losses)
++            if self.training:
++                return tuple(outs), sum(gate_losses)/len(gate_losses)
+         return tuple(outs)
+ 
+ 
+@@ -597,7 +598,8 @@
+         if len(gate_losses) > 0:
+-            return tuple(outs), sum(gate_losses)/len(gate_losses)
++            if self.training:
++                return tuple(outs), sum(gate_losses)/len(gate_losses)
+         return tuple(outs)
+ 
+ 
+--- a/mmrotate/models/detectors/two_stage.py
++++ b/mmrotate/models/detectors/two_stage.py
+@@ -65,7 +65,12 @@
+     def extract_feat(self, img):
+         """Directly extract features from the backbone+neck."""
+         x = self.backbone(img)
++        # Handle backbone returning (features, gate_loss) during training
++        if isinstance(x, tuple) and len(x) == 2 and isinstance(x[1], torch.Tensor) and x[1].numel() == 1:
++            x = x[0]
+         if self.with_neck:
+             x = self.neck(x)
+         return x
+ 
+--- a/tools/train.py
++++ b/tools/train.py
+@@ -21,6 +21,12 @@
+ from mmrotate.utils import collect_env, get_root_logger, setup_multi_processes
+ 
+ 
++# PyTorch 2.6+ compat: allow loading checkpoints with custom objects
++_orig_torch_load = torch.load
++def _patched_load(filename, **kwargs):
++    kwargs.setdefault('weights_only', False)
++    return _orig_torch_load(filename, **kwargs)
++torch.load = _patched_load
++
+ def parse_args():
+     parser = argparse.ArgumentParser(description='Train a detector')
+     parser.add_argument('config', help='train config file path')
